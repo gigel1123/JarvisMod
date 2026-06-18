@@ -1,0 +1,15 @@
+# PyCharm settings
+.idea
+
+# Python cache
+__pycache__
+*.pyc
+
+# Environment variables (if you use a .env file later)
+.env
+
+.venv
+
+init.bat
+.txt
+hey_livekit.onnx
