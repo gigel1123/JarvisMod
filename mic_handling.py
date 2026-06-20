@@ -33,9 +33,8 @@ jarvis.jarvis_talk("JARVIS INITIALIZED")
 
 def trigger_jarvis():
     print("\n🔴 Listening for your command...")
-
+    jarvis.jarvis_talk("Yes sir?")
     jarvis.get_voice_command()
-
     print("\n💤 Going back to sleep. Listening for wake word...\n")
 
 

@@ -27,6 +27,9 @@ import pyttsx3
 from datetime import datetime
 import subprocess
 import base64
+import requests
+from ddgs import DDGS
+from spotify_local import SpotifyLocal
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -45,6 +48,7 @@ print("whisper env loaded")
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 def jarvis_talk(response):
     talk = pyttsx3.init()
+    talk.stop()
     talk.setProperty('rate', 175)
     talk.setProperty('volume', 1)
     talk.say(response)
@@ -193,12 +197,68 @@ def give_answer(answer):
 
 print("give_answer initialized")
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+def none():
+    jarvis_talk("Sorry, this function doesn't exist! Please give a suggestion to the developer to add this function.")
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+def take_screenshot():
+    sc = pyautogui.screenshot()
+    sc.save("screenshot.png")
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+def google_question(query: str):
+    print(f"🤖 Jarvis is searching the web for: {query}...")
+
+    # 1. Get search results for free without an API key
+    try:
+        with DDGS() as ddgs:
+            results = [r for r in ddgs.text(query, max_results=3)]
+    except Exception as e:
+        return f"Failed to fetch search results: {e}"
+
+    if not results:
+        return "No search results found."
+
+    # 2. Combine the web snippets into a context block
+    web_context = ""
+    for i, result in enumerate(results):
+        web_context += f"Source [{i + 1}]: {result['title']}\nSnippet: {result['body']}\n\n"
+
+    # 3. Use your local Ollama model to summarize the scraped data
+    ollama_prompt = f"""
+    You are Jarvis. Answer the user's question using the provided web search context. 
+    Be concise, conversational, and direct.
+
+    User Question: {query}
+
+    Web Context:
+    {web_context}
+    """
+
+    # Send it to whatever local model you run in Ollama (e.g., llama3, mistral, phi3)
+    try:
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "llama3",  # Change to your local Ollama model name
+                "prompt": ollama_prompt,
+                "stream": False
+            }
+        )
+        return response.json().get("response", "Error parsing Ollama response.")
+    except Exception as e:
+        return f"Local Ollama connection failed: {e}"
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+def next_track():
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ACTIONS = {
     "analize_image": analyze_image,
     "open_app": open_app,
     "open_browser": open_browser,
     "open_website": open_website,
     "question": question,
+    "none": none,
+    "screenshot": take_screenshot,
+    "online_question": google_question,
 }
 
 
@@ -250,11 +310,18 @@ system_prompt = """
    Analyze the user request and select the single best function to execute.
    User uses windows OS.
    For applications/websites/stuff with specific names make sure you give the correct agrument ( for example if user wants to open paint you give appname as mspaint).
+   When asked to open a specific app use the function open_app.
    If the function says 'no argument' just respond with the function without specifying any argument. No argument means no argument. DO NOT PUT     "arguments": [""], just     "arguments": [].
    DO NOT DO ANYTHING BESIDES THESE INSTRUCTIONS!
    For example the user asks about whats on the screen, you would want to chose the analize_image function. 
    If user asks something or says hello or tries to make conversation rather than do a specific task, please chose the function 'question'.
-   For the question fuction PLEASE use one single argument. the argument can be as long as you with and must contain the answer to the user input AND a salute to the user. For example if user asks for the date you lookup and give the answer.
+   For the question function PLEASE use one single argument. the argument can be as long as you with and must contain the answer to the user input AND a salute to the user. For example if user asks for the date you lookup and give the answer.
+   If you dont understand the user input or dont know/have what function to chose PLEASE chose the function "none" as it is meant for when theres no specific function.
+   The "online_question" function is meant for questions that you don't know or require online knowledge.
+   The "question" function is meant for simple questions like basic multiplication in maths or stuff you already know without searching for the internet.
+   If there is a typo or something wrong in the input please chose the action none and dont say anything else.
+   If one single argument is needed then do not separate the string with a ",". You may use one single string in the argument, for examnple: "Let's go! May the adventure begin! Where are you headed?, Have a safe and exciting journey!" for function question.
+   AGAIN RESPLOND ONLY RAW JASON OBJECT MATCHIUNG THE GIVEN SCHEMA.
    You must respond ONLY with a raw JSON object matching this schema:
    {
        "action": "function_name",
@@ -267,6 +334,9 @@ system_prompt = """
    - "open_browser" (no arguments)
    - "open_website" (argument: website_name)
    - "question" (argument: salute the user and answer the questions.)
+   - "none" (no argument)
+   - "screenshot" (no argument)
+   - "online_question" (argument: what answer to search for online)
    """
 
 
@@ -313,6 +383,7 @@ def jarvis_init(user_input):
     except json.JSONDecodeError:
         print("ERROR: Llama 3 output was not valid JSON text.")
     except Exception as e:
+        jarvis_talk("ERROR. Something went wrong.")
         print(f"ERROR: {e}")
 
 full_prompt = system_prompt + date_injection
@@ -325,4 +396,3 @@ def jarvis(user_input):
     ai_thread.daemon = False
     ai_thread.start()
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-get_voice_command()
