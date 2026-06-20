@@ -5,6 +5,7 @@ import openwakeword
 from OpenGL.GLUT import INITIALIZED
 from openwakeword.model import Model
 import jarvis
+import talk
 
 # Automatically download models if they are missing
 openwakeword.utils.download_models()
@@ -29,11 +30,11 @@ mic_stream = audio.open(
 )
 
 print("🤖 Jarvis is in sleep mode. Say 'Hey Jarvis' to wake me up...")
-jarvis.jarvis_talk("JARVIS INITIALIZED")
+talk.jarvis("JARVIS INITIALIZED")
 
 def trigger_jarvis():
     print("\n🔴 Listening for your command...")
-    jarvis.jarvis_talk("Yes sir?")
+    talk.jarvis("Yes sir?")
     jarvis.get_voice_command()
     print("\n💤 Going back to sleep. Listening for wake word...\n")
 
