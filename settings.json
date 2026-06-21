@@ -1,0 +1,17 @@
+{
+    "test": false,
+    "analize_image": true,
+    "open_app": true,
+    "open_browser": false,
+    "open_website": true,
+    "question": true,
+    "none": true,
+    "screenshot": true,
+    "online_question": true,
+    "play_track": true,
+    "next_track": true,
+    "previous_track": true,
+    "pause_track": true,
+    "unpause_track": true,
+    "kill": false
+}
