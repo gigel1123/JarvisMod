@@ -15,18 +15,19 @@ if %errorlevel%==0 (
 )
 
 :: 2. Download and install Python silently if missing
-echo [1/3] Python not found. Downloading Python 3.11...
-curl -L -o python_installer.exe https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
+echo [1/3] Python not found.
+echo Downloading Python 3.12...
+curl -L -o python_installer.exe https://www.python.org/ftp/python/3.12.3/python-3.12.3-amd64.exe
 
 echo [2/3] Installing Python silently... (This takes about a minute)
 start /wait python_installer.exe /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
 del python_installer.exe
 
-:: Try to find the freshly installed python executable manually
-if exist "C:\Program Files\Python311\python.exe" (
-    set "PY_CMD=C:\Program Files\Python311\python.exe"
-) else if exist "%LocalAppData%\Programs\Python\Python311\python.exe" (
-    set "PY_CMD=%LocalAppData%\Programs\Python\Python311\python.exe"
+:: Try to find the freshly installed python 3.12 executable manually
+if exist "C:\Program Files\Python312\python.exe" (
+    set "PY_CMD=C:\Program Files\Python312\python.exe"
+) else if exist "%LocalAppData%\Programs\Python\Python312\python.exe" (
+    set "PY_CMD=%LocalAppData%\Programs\Python\Python312\python.exe"
 ) else (
     set "PY_CMD=python"
 )
@@ -48,7 +49,8 @@ python -m pip install --upgrade pip
 if exist "requirements.txt" (
     pip install -r requirements.txt
 ) else (
-    echo [WARNING] requirements.txt not found. Skipping dependency installation.
+    echo [WARNING] requirements.txt not found.
+    echo Skipping dependency installation.
 )
 
 echo.
