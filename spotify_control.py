@@ -3,9 +3,14 @@ from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
 import check_app as ca
+import os
+from dotenv import load_dotenv
 
-CLIENT_ID = "384d965a2c5649569a5acc60d867cf4e"
-CLIENT_SECRET = "b7898522c934495683495717ba3011d6"
+load_dotenv()
+
+
+CLIENT_ID = os.getenv("CLIENT_ID")
+CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = "http://127.0.0.1:8888/callback"
 
 # Define permissions (scopes) to control playback
