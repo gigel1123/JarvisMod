@@ -13,3 +13,4 @@ __pycache__
 init.bat
 .txt
 hey_livekit.onnx
+.cache
