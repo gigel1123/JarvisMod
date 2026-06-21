@@ -1,5 +1,7 @@
 # JarvisMod 🤖
-
+   
+   ![Click Code then Download ZIP](gui.png)
+    
 A lightweight, user-friendly voice assistant built for ultimate flexibility and community-driven customization. JarvisMod features a modular core that allows developers and users to easily create, install, and share custom plugins.
 
 ---
@@ -27,12 +29,15 @@ A lightweight, user-friendly voice assistant built for ultimate flexibility and 
 1. **Download JarvisMod:** Click the green **Code** button at the top right of this page and select **Download ZIP**.
    
    ![Click Code then Download ZIP](code.jpeg)
-    
-2. **Extract the ZIP:** Extract the folder to your Desktop.   
-   
+      
    ![Click Code then Download ZIP](code2.jpeg)
     
-3. **Run Setup:** Double-click **`JarvisMod_Setup.bat`**. It will automatically check for Python, install it if it's missing, configure your environment, and clean itself up.
+    
+3. **Extract the ZIP:** Extract the folder to your Desktop.   
+4. **Run Setup:** Double-click **`JarvisMod_Setup.bat`**. It will automatically check for Python, install it if it's missing, configure your environment, and clean itself up.   
+   
+   ![Click Code then Download ZIP](setup.png)
+    
 Once finished, just double-click **`JarvisMod.bat`** to start talking to Jarvis!
 
 ## 🧩 Installing Community Plugins
