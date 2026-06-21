@@ -59,7 +59,7 @@ Adding new capabilities to your assistant takes seconds:
 
 ---
 
-### 🔌 Custom Plugin Template For Developers
+## 🔌 Custom Plugin Template For Developers
 
 To build a new plugin for JarvisMod, create a blank Python file in the `plugins/` directory (e.g., `my_plugin.py`) and copy/paste this boilerplate code. Just fill in your metadata and logic!
 
@@ -87,4 +87,15 @@ def run():
     talk.jarvis("The test plugin executed successfully, sir! Everything is working perfectly.")
     
     return "test plugin executed successfully"
+```
 
+---
+
+## Comunity
+
+I will continue making plugins myself but i must also rely on the comunity for making plugins!
+Anyone can make a plugin using the given template!
+
+Anyone that makes a plugin will get recognition!
+
+As a solo developer I want to thank everyone that helps maintain this project!
