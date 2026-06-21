@@ -45,49 +45,57 @@ Once finished, just double-click **`JarvisMod.bat`** to start talking to Jarvis!
 Adding new capabilities to your assistant takes seconds:
 
 1. Download a community-made plugin file (e.g., `weather_plugin.py`).
-2. Drop the `.py` file straight into the `plugins/` folder inside your Jarvis directory.
-3. Restart Jarvis and your new commands are ready to go!
+2. Drop the `.py` file straight into the `plugins/` folder inside your Jarvis directory.    
+   
+   ![Click Code then Download ZIP](plugins.png)
+    
+3. Restart Jarvis.
+4. Click the settings button and enable the plugin!      
+   
+   ![Click Code then Download ZIP](settings_button.png)
+    
+   ![Click Code then Download ZIP](settings.png)
+    
 
 ---
 
-### 🔌 Custom Plugin Template For Developers
+## 🔌 Custom Plugin Template For Developers
 
 To build a new plugin for JarvisMod, create a blank Python file in the `plugins/` directory (e.g., `my_plugin.py`) and copy/paste this boilerplate code. Just fill in your metadata and logic!
 
 ```python
 """
-JarvisMod Plugin Template
-Copy this file into the plugins/ folder to create custom functionality.
-"""
+# PLUGIN TEMPLATE
 
-# 1. Framework Metadata (Required)
-# The unique command name users will say or type to trigger this plugin.
-PLUGIN_NAME = "your_plugin_name"
+# 1. The action name Jarvis and Llama 3 will use in the JSON payload
+PLUGIN_NAME = "test_print"
 
-# A brief description explaining what the plugin does and any arguments it takes.
-PLUGIN_DESC = "your_plugin_name (argument: example) - Explains what your plugin does"
+# 2. The instruction injected into the AI's system prompt telling it when to use this
+PLUGIN_DESC = '"test_print" (no arguments. Use this function when the user explicitly asks to run a test or check if plugins are working)'
 
-
-def run(*args):
-    """
-    The main execution loop called by the JarvisMod core.
+# 3. The actual function Jarvis executes when the action matches
+def run():
+   #VERY IMPORTANT!
+   # TO MAKE JARVIS TALK YOU NEED TO IMPORT TALK
+   # TO TALK WRITE 'talk.jarvis("text")'
+    import talk
     
-    Parameters:
-    *args: Dynamic tuple containing any text arguments passed by the user's input.
+    # Print to your console terminal
+    print("\n[PLUGIN SUCCESS] The dynamic drop-in test plugin was called successfully!")
     
-    Returns:
-    str: A status message or response that Jarvis will display or speak back.
-    """
-    # Optional: Extract and validate arguments passed to the plugin
-    if not args:
-        return "Error: Missing required argument for this plugin."
-        
-    user_argument = args[0]
+    # Make Jarvis speak to confirm it works
+    talk.jarvis("The test plugin executed successfully, sir! Everything is working perfectly.")
+    
+    return "test plugin executed successfully"
+```
 
-    # --- WRITE YOUR CUSTOM CODE HERE ---
-    # Example: Processing a task, running a system command, fetching an API, etc.
-    result = f"Successfully processed {user_argument}!"
-    # -----------------------------------
+---
 
-    # Always return a string response for the framework to output
-    return result
+## Comunity
+
+I will continue making plugins myself but i must also rely on the comunity for making plugins!
+Anyone can make a plugin using the given template!
+
+Anyone that makes a plugin will get recognition!
+
+As a solo developer I want to thank everyone that helps maintain this project!
