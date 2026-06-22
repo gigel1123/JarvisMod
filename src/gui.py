@@ -5,7 +5,10 @@ import threading
 import urllib.request
 import jarvis as jarvis_engine
 import mic_handling as wake_word_engine
-
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class PluginStoreWindow(ctk.CTkToplevel):
     def __init__(self, parent_app):

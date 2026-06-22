@@ -29,16 +29,11 @@ import subprocess
 import base64
 import requests
 from ddgs import DDGS
-from spotify_local import SpotifyLocal
-from spotipy import Spotify
-from spotipy.oauth2 import SpotifyOAuth
-import spotipy
 import psutil
 import shutil
 import check_app as ca
 import analyze_img as aimg
 import talk
-import spotify_control
 import start_ollama as stollama
 import importlib.util
 import pathlib
@@ -50,10 +45,21 @@ stollama.start_ollama()
 current_date_str = datetime.now().strftime("%A, %B %d, %Y")
 date_injection = f"\n   IMPORTANT context: Today's date is {current_date_str}.\n"
 
-project_root = r"C:\Users\Gaming\Desktop\Py\JARVIS\JARVIS"
+# --- DYNAMIC ENVIRONMENT PATH LOADING ---
+# Looks at the current directory of this file and finds the true project folder path automatically
+current_file_dir = os.path.dirname(os.path.abspath(__file__))
+
+# If jarvis.py is placed inside a subfolder (like 'src'), go up one directory level.
+# Otherwise, treat the file location itself as the project root.
+if os.path.basename(current_file_dir) == "src":
+    project_root = os.path.dirname(current_file_dir)
+else:
+    project_root = current_file_dir
+
 ffmpeg_bin_path = os.path.join(project_root, "bin")
 os.environ["PATH"] += os.pathsep + ffmpeg_bin_path
 
+print(f"Project environment root loaded dynamically at: {project_root}")
 print("whisper env loaded")
 
 # GUI Thread Hooks (Placeholders for UI updates to completely prevent circular imports)
@@ -117,7 +123,8 @@ def none():
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 def take_screenshot():
     sc = pyautogui.screenshot()
-    sc.save("screenshot.png")
+    screenshot_path = os.path.join(project_root, "screenshot.png")
+    sc.save(screenshot_path)
 
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -162,32 +169,12 @@ def google_question(query: str):
 
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-def next_track():
-    with SpotifyLocal() as sp:
-        sp.next()
-
-
-def previous_track():
-    with SpotifyLocal() as sp:
-        sp.previous()
-
-
-def pause_track():
-    with SpotifyLocal() as sp:
-        sp.pause()
-
-
-def unpause_track():
-    with SpotifyLocal() as sp:
-        sp.unpause()
-
-
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 PLUGINS_DIR = os.path.join(project_root, "plugins")
 os.makedirs(PLUGINS_DIR, exist_ok=True)
 
-json_path = "settings.json"
+json_path = os.path.join(project_root, "settings.json")
 if os.path.exists(json_path):
     with open(json_path, "r") as f:
         try:
@@ -206,11 +193,6 @@ ACTIONS = {
     "none": none if config.get("none", True) else none,
     "screenshot": take_screenshot if config.get("screenshot", True) else none,
     "online_question": google_question if config.get("online_question", True) else none,
-    "play_track": spotify_control.search_and_play if config.get("play_track", True) else none,
-    "next_track": next_track if config.get("next_track", True) else none,
-    "previous_track": previous_track if config.get("previous_track", True) else none,
-    "pause_track": pause_track if config.get("pause_track", True) else none,
-    "unpause_track": unpause_track if config.get("unpause_track", True) else none,
 }
 
 BASE_SYSTEM_PROMPT = """
@@ -250,12 +232,7 @@ Available functions:
 - "question" (argument: salute the user and answer the questions.)
 - "none" (no argument)
 - "screenshot" (no argument)
-- "online_question" (argument: what answer to search for online)
-- "pause_track" (no arguments)
-- "unpause_track" (no arguments)
-- "play_track" (song name)
-- "next_track" (no arguments)
-- "previous_track" (no arguments)"""
+- "online_question" (argument: what answer to search for online)"""
 
 
 def load_plugins():
@@ -272,36 +249,37 @@ def load_plugins():
 
     print("Checking for drop-in plugins...")
 
-    for file in os.listdir(PLUGINS_DIR):
-        if file.endswith(".py") and file != "__init__.py":
-            plugin_name = pathlib.Path(file).stem
-            file_path = os.path.join(PLUGINS_DIR, file)
+    if os.path.exists(PLUGINS_DIR):
+        for file in os.listdir(PLUGINS_DIR):
+            if file.endswith(".py") and file != "__init__.py":
+                plugin_name = pathlib.Path(file).stem
+                file_path = os.path.join(PLUGINS_DIR, file)
 
-            if plugin_name not in config:
-                config[plugin_name] = True
-                config_updated = True
+                if plugin_name not in config:
+                    config[plugin_name] = True
+                    config_updated = True
 
-            if not config[plugin_name]:
-                continue
+                if not config[plugin_name]:
+                    continue
 
-            try:
-                spec = importlib.util.spec_from_file_location(plugin_name, file_path)
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+                try:
+                    spec = importlib.util.spec_from_file_location(plugin_name, file_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
 
-                act_name = getattr(module, "PLUGIN_NAME", plugin_name)
-                act_func = getattr(module, "run", None)
-                act_desc = getattr(module, "PLUGIN_DESC", f"- \"{act_name}\" (dynamically loaded custom action)")
+                    act_name = getattr(module, "PLUGIN_NAME", plugin_name)
+                    act_func = getattr(module, "run", None)
+                    act_desc = getattr(module, "PLUGIN_DESC", f"- \"{act_name}\" (dynamically loaded custom action)")
 
-                if act_func:
-                    ACTIONS[act_name] = act_func
-                    plugin_prompt_additions += f"\n- {act_desc}"
-                    print(f" Successfully loaded plugin tool: {act_name}")
-                else:
-                    print(f"⚠️ Failed to load {file}: Missing 'run(*args)' function entrypoint.")
+                    if act_func:
+                        ACTIONS[act_name] = act_func
+                        plugin_prompt_additions += f"\n- {act_desc}"
+                        print(f" Successfully loaded plugin tool: {act_name}")
+                    else:
+                        print(f"⚠️ Failed to load {file}: Missing 'run(*args)' function entrypoint.")
 
-            except Exception as e:
-                print(f"❌ Error compiling plugin execution on file {file}: {e}")
+                except Exception as e:
+                    print(f"❌ Error compiling plugin execution on file {file}: {e}")
 
     if config_updated:
         with open(json_path, "w") as f:
@@ -320,7 +298,7 @@ print("Initiallizing Jarvis")
 whisper_model = whisper.load_model("medium")
 SAMPLE_RATE = 16000
 DURATION = 5
-FILENAME = "command.wav"
+FILENAME = os.path.join(project_root, "command.wav")
 
 
 def record_audio():
@@ -346,7 +324,6 @@ def get_voice_command():
     result = whisper_model.transcribe(FILENAME, fp16=False)
     text_command = result["text"].strip().lower()
 
-    # Notify GUI what Whisper extracted from the audio file
     if on_whisper_update:
         on_whisper_update(text_command)
 
@@ -375,7 +352,6 @@ def jarvis_init(user_input):
         raw_out = response['message']['content'].strip()
         print(f"raw out:    {raw_out}")
 
-        # Send raw inference details straight onto GUI interface screen
         if on_jarvis_update:
             on_jarvis_update(raw_out)
 

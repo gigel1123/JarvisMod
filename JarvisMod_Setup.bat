@@ -1,62 +1,124 @@
 @echo off
-title JarvisMod Full Automated Setup
-cd /d "%~dp0"
+setlocal enabledelayedexpansion
+title JarvisMod Environment Setup
+
 echo ===================================================
-echo               Installing JarvisMod & Python
+echo             JarvisMod Environment Setup            
 echo ===================================================
 echo.
 
-:: 1. Check if Python is already there
-python --version >nul 2>&1
-if %errorlevel%==0 (
-    echo [INFO] Python is already installed.
-    set "PY_CMD=python"
-    goto :create_venv
+:: Step 1: Check for Python 3.12
+echo [*] Checking for Python 3.12...
+py -3.12 -c "import sys; print('Found Python ' + sys.version.split()[0])" >nul 2>&1
+if %errorlevel% equ 0 (
+    set PYTHON_CMD=py -3.12
+    goto create_venv
 )
 
-:: 2. Download and install Python silently if missing
-echo [1/3] Python not found.
-echo Downloading Python 3.12...
-curl -L -o python_installer.exe https://www.python.org/ftp/python/3.12.3/python-3.12.3-amd64.exe
-
-echo [2/3] Installing Python silently... (This takes about a minute)
-start /wait python_installer.exe /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
-del python_installer.exe
-
-:: Try to find the freshly installed python 3.12 executable manually
-if exist "C:\Program Files\Python312\python.exe" (
-    set "PY_CMD=C:\Program Files\Python312\python.exe"
-) else if exist "%LocalAppData%\Programs\Python\Python312\python.exe" (
-    set "PY_CMD=%LocalAppData%\Programs\Python\Python312\python.exe"
-) else (
-    set "PY_CMD=python"
+python -c "import sys; assert sys.version_info[:2] == (3, 12)" >nul 2>&1
+if %errorlevel% equ 0 (
+    set PYTHON_CMD=python
+    goto create_venv
 )
+
+:: Step 1b: Python missing -> Auto-install via winget
+echo [!] Python 3.12 is required but was not found.
+echo [*] Attempting to automatically install Python 3.12 via winget...
+
+where winget >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [!] Error: Windows Package Manager (winget) is missing.
+    echo     Please install Python 3.12 manually from python.org
+    pause
+    exit /b 1
+)
+
+echo [*] Installing Python 3.12. Please grant admin permissions if prompted...
+winget install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
+if %errorlevel% neq 0 (
+    echo [!] Automatic installation failed.
+    echo     Please download and install Python 3.12 manually.
+    pause
+    exit /b 1
+)
+
+echo [+] Python 3.12 installed successfully!
+echo [*] Refreshing environment paths...
+
+:: Refresh PATH without restarting the command prompt
+for /f "tokens=2*" %%A in ('reg query "HKLM\System\CurrentControlSet\Control\Session Manager\Environment" /v Path') do set "SYS_PATH=%%B"
+for /f "tokens=2*" %%A in ('reg query "HKCU\Environment" /v Path') do set "USER_PATH=%%B"
+set "PATH=%USER_PATH%;%SYS_PATH%"
+
+:: Re-verify after install
+py -3.12 -c "import sys" >nul 2>&1
+if %errorlevel% equ 0 (
+    set PYTHON_CMD=py -3.12
+    goto create_venv
+)
+
+python -c "import sys; assert sys.version_info[:2] == (3, 12)" >nul 2>&1
+if %errorlevel% equ 0 (
+    set PYTHON_CMD=python
+    goto create_venv
+)
+
+:: Fallback if paths are still stubborn in the current window
+if exist "%LocalAppData%\Programs\Python\Python312\python.exe" (
+    set PYTHON_CMD="%LocalAppData%\Programs\Python\Python312\python.exe"
+    goto create_venv
+)
+
+echo [!] Python was installed but the script cannot see it yet.
+echo     Please close this window and run JarvisMod_Setup.bat again.
+pause
+exit /b 1
 
 :create_venv
-echo [3/3] Setting up local virtual environment and dependencies...
-:: Create the environment using our detected python path
-"%PY_CMD%" -m venv .venv
+:: Step 2: Create Virtual Environment
+echo [*] Using target: !PYTHON_CMD! [cite: 4]
+if not exist .venv ( 
+    echo [*] Creating virtual environment (.venv)... 
+    !PYTHON_CMD! -m venv .venv 
+    if %errorlevel% neq 0 ( 
+        echo [!] Failed to create virtual environment. 
+        pause 
+        exit /b 1 
+    ) 
+    echo [^+] Virtual environment created successfully. 
+) else ( 
+    echo [*] Existing virtual environment (.venv) detected. Skipping creation. 
+) 
 
-if not exist ".venv" (
-    echo [ERROR] Failed to create virtual environment. Try running this file as Administrator.
-    pause
-    exit
-)
+:: Step 3: Activate venv and install dependencies
+echo [*] Activating virtual environment... 
+call .venv\Scripts\activate.bat 
+if %errorlevel% neq 0 ( [cite: 5, 6]
+    echo [!] Failed to activate virtual environment. 
+    pause 
+    exit /b 1 
+) 
 
-:: Activate and install requirements
-call .venv\Scripts\activate
-python -m pip install --upgrade pip
-if exist "requirements.txt" (
-    pip install -r requirements.txt
-) else (
-    echo [WARNING] requirements.txt not found.
-    echo Skipping dependency installation.
-)
+echo [*] Upgrading pip... 
+python -m pip install --upgrade pip 
 
-echo.
-echo ===================================================
-echo Setup complete! JarvisMod is ready to go.
-echo Use 'Run_Jarvis.bat' to start the application.
-echo ===================================================
-pause
-exit
+:: Step 4: Install requirements
+if exist requirements.txt ( 
+    echo [*] Installing requirements from requirements.txt... 
+    pip install -r requirements.txt 
+    if %errorlevel% neq 0 ( 
+        echo [!] Error occurred during dependency installation. 
+        pause 
+        exit /b 1 
+    ) 
+    echo [^+] All dependencies installed successfully. [cite: 7]
+) else ( [cite: 7]
+    echo [!] Warning: requirements.txt not found. Skipping dependency installation. [cite: 7]
+) [cite: 7]
+
+echo. [cite: 7]
+echo =================================================== [cite: 8]
+echo     Setup Complete! You can now run JarvisMod.     [cite: 8]
+echo =================================================== [cite: 8]
+echo. [cite: 8]
+pause [cite: 8]

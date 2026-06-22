@@ -2,7 +2,6 @@ import os
 import pyaudio
 import numpy as np
 import openwakeword
-from OpenGL.GLUT import INITIALIZED
 from openwakeword.model import Model
 import jarvis
 import talk
