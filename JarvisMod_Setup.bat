@@ -1,6 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 title JarvisMod Environment Setup
+winget install Python.Python.3.12
 
 echo ===================================================
 echo             JarvisMod Environment Setup            
