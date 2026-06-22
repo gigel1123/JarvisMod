@@ -6,7 +6,7 @@ from win10toast import ToastNotifier
 
 # These variables tell Jarvis's LLM reasoning engine what this plugin does
 PLUGIN_NAME = "desktop_timer"
-PLUGIN_DESC = '"desktop_timer" (arguments: duration_in_seconds, reminder_message) - Sets a countdown timer, shows a floating desktop window widget, and plays an alarm tone when completed.'
+PLUGIN_DESC = '"desktop_timer" (arguments: duration_in_seconds, reminder_message) - When asked to remind of something after some amount of time like a reminder/timer please use this function.'
 
 
 class FloatingTimerWidget:

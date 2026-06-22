@@ -9,5 +9,6 @@
     "kill": true,
     "open_stremio_app": true,
     "test": true,
-    "sleep_pc": true
+    "sleep_pc": true,
+    "desktop_timer": true
 }
