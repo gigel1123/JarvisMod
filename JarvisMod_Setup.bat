@@ -76,24 +76,24 @@ exit /b 1
 
 :create_venv
 :: Step 2: Create Virtual Environment
-echo [*] Using target: !PYTHON_CMD! [cite: 4]
+echo [*] Using target: !PYTHON_CMD!
 if not exist .venv ( 
-    echo [*] Creating virtual environment (.venv)... 
+    echo [*] Creating virtual environment venv... 
     !PYTHON_CMD! -m venv .venv 
     if %errorlevel% neq 0 ( 
         echo [!] Failed to create virtual environment. 
         pause 
         exit /b 1 
     ) 
-    echo [^+] Virtual environment created successfully. 
+    echo [+] Virtual environment created successfully. 
 ) else ( 
-    echo [*] Existing virtual environment (.venv) detected. Skipping creation. 
+    echo [*] Existing virtual environment venv detected. Skipping creation. 
 ) 
 
 :: Step 3: Activate venv and install dependencies
 echo [*] Activating virtual environment... 
 call .venv\Scripts\activate.bat 
-if %errorlevel% neq 0 ( [cite: 5, 6]
+if %errorlevel% neq 0 ( 
     echo [!] Failed to activate virtual environment. 
     pause 
     exit /b 1 
@@ -101,6 +101,13 @@ if %errorlevel% neq 0 ( [cite: 5, 6]
 
 echo [*] Upgrading pip... 
 python -m pip install --upgrade pip 
+
+:: Step 3b: Fix Git Long Paths automatically for the user
+where git >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [*] Optimizing Git configuration for long file paths...
+    git config --global core.longpaths true
+)
 
 :: Step 4: Install requirements
 if exist requirements.txt ( 
@@ -111,14 +118,14 @@ if exist requirements.txt (
         pause 
         exit /b 1 
     ) 
-    echo [^+] All dependencies installed successfully. [cite: 7]
-) else ( [cite: 7]
-    echo [!] Warning: requirements.txt not found. Skipping dependency installation. [cite: 7]
-) [cite: 7]
+    echo [+] All dependencies installed successfully. 
+) else ( 
+    echo [!] Warning: requirements.txt not found. Skipping dependency installation. 
+) 
 
-echo. [cite: 7]
-echo =================================================== [cite: 8]
-echo     Setup Complete! You can now run JarvisMod.     [cite: 8]
-echo =================================================== [cite: 8]
-echo. [cite: 8]
-pause [cite: 8]
+echo. 
+echo =================================================== 
+echo     Setup Complete! You can now run JarvisMod.     
+echo =================================================== 
+echo. 
+pause
