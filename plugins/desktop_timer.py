@@ -6,7 +6,7 @@ from win10toast import ToastNotifier
 
 # These variables tell Jarvis's LLM reasoning engine what this plugin does
 PLUGIN_NAME = "desktop_timer"
-PLUGIN_DESC = '"desktop_timer" (arguments: duration_in_seconds, reminder_message) - When asked to remind of something after some amount of time like a reminder/timer please use this function.'
+PLUGIN_DESC = '"desktop_timer" (arguments: duration_in_seconds, reminder_message) - When asked to remind of something after some amount of time like a reminder/timer please use this function. For example user asks "please remind me to check the oven in 5 minutes" you would use this function.'
 
 
 class FloatingTimerWidget:
