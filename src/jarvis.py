@@ -119,7 +119,7 @@ def google_question(query: str):
         return f"Local Ollama connection failed: {e}"
 
 
-PLUGINS_DIR = os.path.join(project_root, "plugins")
+PLUGINS_DIR = os.path.abspath(os.path.join(project_root, "plugins"))
 os.makedirs(PLUGINS_DIR, exist_ok=True)
 
 json_path = os.path.join(project_root, "settings.json")
@@ -137,7 +137,7 @@ ACTIONS = {
     "open_app": open_app if config.get("open_app", True) else none,
     "open_website": open_website if config.get("open_website", True) else none,
     "question": question if config.get("question", True) else none,
-    "none": none,  # Handled safely as a global constant engine routine fallback execution path
+    "none": none,
     "screenshot": take_screenshot if config.get("screenshot", True) else none,
     "online_question": google_question if config.get("online_question", True) else none,
 }
@@ -180,7 +180,6 @@ def load_plugins():
     config_updated = False
     plugin_prompt_additions = ""
 
-    # Synchronize default core features list safely inside JSON config store
     for core_action in ["analize_image", "open_app", "open_website", "question", "screenshot", "online_question"]:
         if core_action not in config:
             config[core_action] = True
@@ -188,20 +187,23 @@ def load_plugins():
 
     print("Checking for drop-in plugins...")
 
+    present_plugins = set()
     if os.path.exists(PLUGINS_DIR):
         for file in os.listdir(PLUGINS_DIR):
             if file.endswith(".py") and file != "__init__.py":
                 plugin_name = pathlib.Path(file).stem
-                file_path = os.path.join(PLUGINS_DIR, file)
+                present_plugins.add(plugin_name)
 
                 if plugin_name not in config:
                     config[plugin_name] = True
                     config_updated = True
 
                 if not config[plugin_name]:
+                    ACTIONS[plugin_name] = none
                     continue
 
                 try:
+                    file_path = os.path.join(PLUGINS_DIR, file)
                     spec = importlib.util.spec_from_file_location(plugin_name, file_path)
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)
@@ -219,6 +221,15 @@ def load_plugins():
 
                 except Exception as e:
                     print(f"❌ Error compiling plugin execution on file {file}: {e}")
+
+    # Remove any uninstalled plugins completely from the config dictionary
+    for key in list(config.keys()):
+        if key not in ["analize_image", "open_app", "open_website", "question", "screenshot", "online_question", "none"]:
+            if key not in present_plugins:
+                config.pop(key, None)
+                if key in ACTIONS:
+                    ACTIONS.pop(key, None)
+                config_updated = True
 
     if config_updated:
         with open(json_path, "w") as f:

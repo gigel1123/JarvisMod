@@ -10,18 +10,19 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+
 class PluginStoreWindow(ctk.CTkToplevel):
     def __init__(self, parent_app):
         super().__init__()
         self.parent_app = parent_app
         self.title("Jarvis Plugin Downloader")
-        self.geometry("500x550")
+        self.geometry("550x550")
         self.attributes("-topmost", True)
 
         title_lbl = ctk.CTkLabel(self, text="Browse & Install Plugins", font=ctk.CTkFont(size=16, weight="bold"))
         title_lbl.pack(pady=15)
 
-        self.scroll_frame = ctk.CTkScrollableFrame(self, width=450, height=420)
+        self.scroll_frame = ctk.CTkScrollableFrame(self, width=500, height=420)
         self.scroll_frame.pack(pady=10, fill="both", expand=True, padx=15)
 
         self.status_lbl = ctk.CTkLabel(self.scroll_frame, text="Fetching online repository directory...")
@@ -56,7 +57,7 @@ class PluginStoreWindow(ctk.CTkToplevel):
         filename = plugin_info["name"]
         download_url = plugin_info["download_url"]
 
-        local_path = os.path.join("plugins", filename)
+        local_path = os.path.join(jarvis_engine.PLUGINS_DIR, filename)
         is_installed = os.path.exists(local_path)
 
         frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
@@ -66,34 +67,72 @@ class PluginStoreWindow(ctk.CTkToplevel):
         lbl = ctk.CTkLabel(frame, text=display_name, font=ctk.CTkFont(size=13, weight="bold"))
         lbl.pack(side="left", anchor="w")
 
-        btn = ctk.CTkButton(frame, width=90)
+        btn_container = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_container.pack(side="right", anchor="e")
+
+        self.render_row_buttons(btn_container, filename, plugin_info, is_installed)
+
+    def render_row_buttons(self, container_widget, filename, plugin_info, is_installed):
+        for child in container_widget.winfo_children():
+            child.destroy()
+
+        action_btn = ctk.CTkButton(container_widget, width=90)
+
         if is_installed:
-            btn.configure(text="Installed", state="disabled", fg_color="#2E7D32")
+            action_btn.configure(text="Installed", state="disabled", fg_color="#2E7D32")
+            uninstall_btn = ctk.CTkButton(
+                container_widget,
+                text="Uninstall",
+                width=80,
+                fg_color="#D32F2F",
+                hover_color="#B71C1C",
+                command=lambda: self.uninstall_plugin(filename, container_widget, plugin_info)
+            )
+            uninstall_btn.pack(side="right", padx=(5, 0))
         else:
-            btn.configure(text="Install", command=lambda: self.start_download(filename, download_url, btn))
+            action_btn.configure(text="Install",
+                                 command=lambda: self.start_download(filename, plugin_info["download_url"], action_btn,
+                                                                     container_widget, plugin_info))
 
-        btn.pack(side="right", anchor="e")
+        action_btn.pack(side="right")
 
-    def start_download(self, filename, url, button_widget):
+    def start_download(self, filename, url, button_widget, container_widget, plugin_info):
         button_widget.configure(text="Downloading...", state="disabled", fg_color="#EF6C00")
-        threading.Thread(target=self.download_worker, args=(filename, url, button_widget), daemon=True).start()
+        threading.Thread(target=self.download_worker,
+                         args=(filename, url, button_widget, container_widget, plugin_info), daemon=True).start()
 
-    def download_worker(self, filename, url, button_widget):
+    def download_worker(self, filename, url, button_widget, container_widget, plugin_info):
         try:
-            os.makedirs("plugins", exist_ok=True)
-            local_path = os.path.join("plugins", filename)
+            os.makedirs(jarvis_engine.PLUGINS_DIR, exist_ok=True)
+            local_path = os.path.join(jarvis_engine.PLUGINS_DIR, filename)
 
             req = urllib.request.Request(url, headers={'User-Agent': 'JarvisClient'})
             with urllib.request.urlopen(req) as response, open(local_path, 'wb') as out_file:
                 out_file.write(response.read())
 
-            self.parent_app.after(0, lambda: button_widget.configure(text="Installed", fg_color="#2E7D32"))
-
+            self.parent_app.after(0, lambda: self.render_row_buttons(container_widget, filename, plugin_info,
+                                                                     is_installed=True))
             jarvis_engine.load_plugins()
             self.parent_app.refresh_actions_on_toggle()
 
         except Exception as e:
             self.parent_app.after(0, lambda: button_widget.configure(text="Retry", state="normal", fg_color="#D32F2F"))
+
+    def uninstall_plugin(self, filename, container_widget, plugin_info):
+        local_path = os.path.join(jarvis_engine.PLUGINS_DIR, filename)
+        try:
+            if os.path.exists(local_path):
+                os.remove(local_path)
+
+            self.render_row_buttons(container_widget, filename, plugin_info, is_installed=False)
+            jarvis_engine.load_plugins()
+            self.parent_app.refresh_actions_on_toggle()
+
+            # Dynamically refresh settings layout if it happens to be open
+            if self.parent_app.settings_window and self.parent_app.settings_window.winfo_exists():
+                self.parent_app.settings_window.clear_and_reload()
+        except Exception as e:
+            print(f"Failed to remove plugin file: {e}")
 
 
 class SettingsWindow(ctk.CTkToplevel):
@@ -113,17 +152,18 @@ class SettingsWindow(ctk.CTkToplevel):
         self.switches = {}
         self.load_toggles()
 
+    def clear_and_reload(self):
+        for child in self.scroll_frame.winfo_children():
+            child.destroy()
+        self.switches.clear()
+        self.load_toggles()
+
     def load_toggles(self):
-        if os.path.exists(jarvis_engine.json_path):
-            with open(jarvis_engine.json_path, "r") as f:
-                try:
-                    jarvis_engine.config = json.load(f)
-                except json.JSONDecodeError:
-                    pass
+        jarvis_engine.load_plugins()
 
         for key, value in jarvis_engine.config.items():
-            # Skip showing 'none' and track options in the interface configuration
-            if key in ["none", "play_track", "next_track", "previous_track", "pause_track", "unpause_track", "open_browser"]:
+            if key in ["none", "play_track", "next_track", "previous_track", "pause_track", "unpause_track",
+                       "open_browser"]:
                 continue
 
             frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
@@ -153,7 +193,8 @@ class SettingsWindow(ctk.CTkToplevel):
             jarvis_engine.ACTIONS[key] = jarvis_engine.none
         else:
             CORE_MAPPING = {
-                "analize_image": jarvis_engine.aimg.analyze_image if hasattr(jarvis_engine, 'aimg') else jarvis_engine.none,
+                "analize_image": jarvis_engine.aimg.analyze_image if hasattr(jarvis_engine,
+                                                                             'aimg') else jarvis_engine.none,
                 "open_app": jarvis_engine.open_app,
                 "open_website": jarvis_engine.open_website,
                 "question": jarvis_engine.question,
@@ -166,7 +207,7 @@ class SettingsWindow(ctk.CTkToplevel):
             else:
                 jarvis_engine.load_plugins()
 
-            self.parent_app.refresh_actions_on_toggle()
+        self.parent_app.refresh_actions_on_toggle()
 
 
 class JarvisApp(ctk.CTk):
@@ -183,7 +224,8 @@ class JarvisApp(ctk.CTk):
         self.top_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.top_frame.pack(fill="x", padx=20, pady=15)
 
-        self.title_lbl = ctk.CTkLabel(self.top_frame, text="JARVIS AUTOMATION CONSOLE", font=ctk.CTkFont(size=18, weight="bold"))
+        self.title_lbl = ctk.CTkLabel(self.top_frame, text="JARVIS AUTOMATION CONSOLE",
+                                      font=ctk.CTkFont(size=18, weight="bold"))
         self.title_lbl.pack(side="left")
 
         self.btn_frame = ctk.CTkFrame(self.top_frame, fg_color="transparent")
@@ -207,7 +249,8 @@ class JarvisApp(ctk.CTk):
         self.jarvis_text.pack(fill="x", padx=20)
         self.jarvis_text.insert("0.0", "Systems Idle.")
 
-        self.prompt_lbl = ctk.CTkLabel(self, text="Manual Execution Terminal Override:", font=ctk.CTkFont(weight="bold"))
+        self.prompt_lbl = ctk.CTkLabel(self, text="Manual Execution Terminal Override:",
+                                       font=ctk.CTkFont(weight="bold"))
         self.prompt_lbl.pack(anchor="w", padx=20, pady=(15, 2))
 
         self.input_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -220,7 +263,8 @@ class JarvisApp(ctk.CTk):
         self.send_btn = ctk.CTkButton(self.input_frame, text="Execute", width=100, command=self.send_manual_prompt)
         self.send_btn.pack(side="right")
 
-        self.status_lbl = ctk.CTkLabel(self, text="🟢 Wake Word Engine Active: Sleep Mode ('Hey Jarvis')", text_color="#4CAF50", font=ctk.CTkFont(weight="bold"))
+        self.status_lbl = ctk.CTkLabel(self, text="🟢 Wake Word Engine Active: Sleep Mode ('Hey Jarvis')",
+                                       text_color="#4CAF50", font=ctk.CTkFont(weight="bold"))
         self.status_lbl.pack(pady=(0, 15))
 
     def open_settings(self):
