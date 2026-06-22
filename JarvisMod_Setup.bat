@@ -33,16 +33,24 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [*] Installing Python 3.12. Please grant admin permissions if prompted...
-winget install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
+:: Force winget initialization/agreement check out in the open
+echo [*] Initializing Windows Package Manager...
+winget list >nul 2>&1
+
+echo [*] Launching Python 3.12 installer...
+echo [!] NOTE: If a User Account Control (UAC) window pops up, click YES to allow the install!
+echo.
+winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements
 if %errorlevel% neq 0 (
-    echo [!] Automatic installation failed.
+    echo.
+    echo [!] Automatic installation failed or was cancelled.
     echo     Please download and install Python 3.12 manually.
     pause
     exit /b 1
 )
 
-echo [+] Python 3.12 installed successfully!
+echo.
+echo [+] Python 3.12 installer finished!
 echo [*] Refreshing environment paths...
 
 :: Refresh PATH without restarting the command prompt
@@ -69,7 +77,13 @@ if exist "%LocalAppData%\Programs\Python\Python312\python.exe" (
     goto create_venv
 )
 
-echo [!] Python was installed but the script cannot see it yet.
+:: System-wide installation fallback check
+if exist "%ProgramFiles%\Python312\python.exe" (
+    set PYTHON_CMD="%ProgramFiles%\Python312\python.exe"
+    goto create_venv
+)
+
+echo [!] Python was installed but the script cannot map its path yet.
 echo     Please close this window and run JarvisMod_Setup.bat again.
 pause
 exit /b 1
@@ -78,29 +92,29 @@ exit /b 1
 :: Step 2: Create Virtual Environment
 echo [*] Using target: !PYTHON_CMD!
 if not exist .venv ( 
-    echo [*] Creating virtual environment venv... 
-    !PYTHON_CMD! -m venv .venv 
+    echo [*] Creating virtual environment venv...
+    !PYTHON_CMD! -m venv .venv
     if %errorlevel% neq 0 ( 
-        echo [!] Failed to create virtual environment. 
-        pause 
-        exit /b 1 
+        echo [!] Failed to create virtual environment.
+        pause
+        exit /b 1
     ) 
-    echo [+] Virtual environment created successfully. 
+    echo [+] Virtual environment created successfully.
 ) else ( 
-    echo [*] Existing virtual environment venv detected. Skipping creation. 
+    echo [*] Existing virtual environment venv detected. Skipping creation.
 ) 
 
 :: Step 3: Activate venv and install dependencies
-echo [*] Activating virtual environment... 
-call .venv\Scripts\activate.bat 
+echo [*] Activating virtual environment...
+call .venv\Scripts\activate.bat
 if %errorlevel% neq 0 ( 
-    echo [!] Failed to activate virtual environment. 
-    pause 
-    exit /b 1 
+    echo [!] Failed to activate virtual environment.
+    pause
+    exit /b 1
 ) 
 
-echo [*] Upgrading pip... 
-python -m pip install --upgrade pip 
+echo [*] Upgrading pip...
+python -m pip install --upgrade pip
 
 :: Step 3b: Fix Git Long Paths automatically for the user
 where git >nul 2>&1
@@ -111,21 +125,21 @@ if %errorlevel% equ 0 (
 
 :: Step 4: Install requirements
 if exist requirements.txt ( 
-    echo [*] Installing requirements from requirements.txt... 
-    pip install -r requirements.txt 
+    echo [*] Installing requirements from requirements.txt...
+    pip install -r requirements.txt
     if %errorlevel% neq 0 ( 
-        echo [!] Error occurred during dependency installation. 
-        pause 
-        exit /b 1 
+        echo [!] Error occurred during dependency installation.
+        pause
+        exit /b 1
     ) 
-    echo [+] All dependencies installed successfully. 
+    echo [+] All dependencies installed successfully.
 ) else ( 
-    echo [!] Warning: requirements.txt not found. Skipping dependency installation. 
+    echo [!] Warning: requirements.txt not found. Skipping dependency installation.
 ) 
 
-echo. 
-echo =================================================== 
-echo     Setup Complete! You can now run JarvisMod.     
-echo =================================================== 
+echo.
+echo ===================================================
+echo     Setup Complete! You can now run JarvisMod.    
+echo ===================================================
 echo. 
 pause
