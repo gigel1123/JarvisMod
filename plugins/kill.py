@@ -1,26 +1,37 @@
-import os
+import subprocess
+from src import talk
 
-# plugins/test_plugin.py
-
-# 1. The action name Jarvis and Llama 3 will use in the JSON payload
-PLUGIN_NAME = "open_stremio"
-
-# 2. The instruction injected into the AI's system prompt telling it when to use this
-PLUGIN_DESC = '"test_print" (no arguments. Use this function when the user explicitly asks to run a test or check if plugins are working)'
+PLUGIN_NAME = "kill_process"
+PLUGIN_DESC = '"kill_process" (argument: process_name) - Use this when the user wants to terminate a running program.'
+KEYWORDS = ["kill", "stop", "close process"]
 
 
-# 3. The actual function Jarvis executes when the action matches
-def run():
-    import talk
+def run(*args):
+    # If the keyword "kill" is used without a target, ask for clarification
+    if not args or len(args) == 0:
+        talk.jarvis("Which process would you like me to kill?")
+        return
 
-    # Print to your console terminal
-    print("\n[PLUGIN SUCCESS] The dynamic drop-in test plugin was called successfully!")
-    os.startfile("stremio.exe")
+    process_name = args[0]
 
-    # Bonus: You can also open a specific file or URL directly in its default app!
-    os.startfile("C:\\Users\\YourName\\Documents\\report.docx")
+    # Simple logic to ensure the name has .exe
+    if not process_name.lower().endswith(".exe"):
+        process_name += ".exe"
 
-    # Make Jarvis speak to confirm it works
-    talk.jarvis("Opening Stremio now sir!")
+    print(f"\n[PLUGIN] Attempting to terminate: {process_name}")
 
-    return "test plugin executed successfully"
+    # Use Windows taskkill command
+    try:
+        # /f forces the process to close, /im specifies the image name
+        result = subprocess.run(["taskkill", "/f", "/im", process_name], capture_output=True, text=True)
+
+        if result.returncode == 0:
+            talk.jarvis(f"Successfully killed {process_name}, sir.")
+        else:
+            talk.jarvis(f"I couldn't find a process named {process_name}. Please check the name.")
+
+    except Exception as e:
+        print(f"Error killing process: {e}")
+        talk.jarvis("I encountered an error while trying to stop that process.")
+
+    return "kill process executed"

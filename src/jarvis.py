@@ -142,43 +142,15 @@ ACTIONS = {
     "online_question": google_question if config.get("online_question", True) else none,
 }
 
-BASE_SYSTEM_PROMPT = """
-You are the reasoning engine for an automation framework named Jarvis.
-Analyze the user request and select the single best function to execute.
-User uses windows OS.
-For applications/websites/stuff with specific names make sure you give the correct agrument ( for example if user wants to open paint you give appname as mspaint).
-When asked to open a specific app use the function open_app.
-If the function says 'no argument' just respond with the function without specifying any argument. No argument means no argument. DO NOT PUT "arguments": [""], just "arguments": [].
-DO NOT DO ANYTHING BESIDES THESE INSTRUCTIONS!
-For example the user asks about whats on the screen, you would want to chose the analize_image function. 
-If user asks something or says hello or tries to make conversation rather than do a specific task, please chose the function 'question'.
-For the question function PLEASE use one single argument. the argument can be as long as you with and must contain the answer to the user input AND a salute to the user.
-If you dont understand the user input or dont know/have what function to chose PLEASE chose the function "none" as it is meant for when theres no specific function.
-The "online_question" function is meant for questions that you don't know or require online knowledge.
-The "question" function is meant for simple questions like basic multiplication in maths or stuff you already know without searching for the internet.
-If there is a typo or something wrong in the input please chose the action none and dont say anything else.
-If one single argument is needed then do not separate the string with a ",". You may use one single string in the argument.
-AGAIN RESPOND ONLY RAW JSON OBJECT MATCHING THE GIVEN SCHEMA.
-You must respond ONLY with a raw JSON object matching this schema:
-{
-    "action": "function_name",
-    "arguments": ["arg1", "arg2"]
-}
-
-Available functions:
-- "analize_image" (no argument)
-- "open_app" (argument: app_name)
-- "open_website" (argument: website_name)
-- "question" (argument: salute the user and answer the questions.)
-- "none" (no argument)
-- "screenshot" (no argument)
-- "online_question" (argument: what answer to search for online)"""
+# Dictionary to hold the keyword mapping for instant execution bypass
+KEYWORD_REGISTRY = {}
 
 
 def load_plugins():
-    global BASE_SYSTEM_PROMPT, ACTIONS, config
+    global ACTIONS, KEYWORD_REGISTRY, config
     config_updated = False
     plugin_prompt_additions = ""
+    KEYWORD_REGISTRY.clear()
 
     for core_action in ["analize_image", "open_app", "open_website", "question", "screenshot", "online_question"]:
         if core_action not in config:
@@ -211,18 +183,30 @@ def load_plugins():
                     act_name = getattr(module, "PLUGIN_NAME", plugin_name)
                     act_func = getattr(module, "run", None)
                     act_desc = getattr(module, "PLUGIN_DESC", f"- \"{act_name}\" (dynamically loaded custom action)")
+                    act_keywords = getattr(module, "KEYWORDS", [])
 
                     if act_func:
                         ACTIONS[act_name] = act_func
                         plugin_prompt_additions += f"\n- {act_desc}"
-                        print(f" Successfully loaded plugin tool: {act_name}")
+
+                        # Register up to 3 valid keywords for AI bypass
+                        registered_count = 0
+                        for kw in act_keywords:
+                            if registered_count >= 3:
+                                break
+                            clean_kw = str(kw).strip().lower()
+                            if clean_kw:
+                                KEYWORD_REGISTRY[clean_kw] = act_name
+                                registered_count += 1
+
+                        print(
+                            f" Successfully loaded plugin tool: {act_name} (Registered {registered_count} bypass keywords)")
                     else:
                         print(f"⚠️ Failed to load {file}: Missing 'run(*args)' function entrypoint.")
 
                 except Exception as e:
                     print(f"❌ Error compiling plugin execution on file {file}: {e}")
 
-    # Remove any uninstalled plugins completely from the config dictionary
     for key in list(config.keys()):
         if key not in ["analize_image", "open_app", "open_website", "question", "screenshot", "online_question",
                        "none"]:
@@ -236,7 +220,33 @@ def load_plugins():
         with open(json_path, "w") as f:
             json.dump(config, f, indent=4)
 
-    return BASE_SYSTEM_PROMPT + plugin_prompt_additions
+    dynamic_system_prompt = f"""You are the reasoning engine for an automation framework named Jarvis on Windows.
+Your primary task is to map user statements to the single best structural action function available.
+
+CRITICAL PIPELINE EXECUTION INSTRUCTIONS:
+1. Review the "INSTALLED PLUGINS AND CUSTOM ACTIONS" section below. If any plugin description matches the user's explicit intent (e.g., setting a timer, playing a game, checking a custom API), you MUST prioritize selecting that plugin over generic actions.
+2. If the user is trying to have small talk, say hello, or ask generic questions that don't match any custom tool description, select "question".
+3. When asked to open a specific desktop app use the function "open_app".
+4. If a function says 'no argument' in its description, do not provide any strings inside the arguments array.
+5. You must respond ONLY with a raw JSON object matching this schema:
+{{
+    "action": "function_name",
+    "arguments": ["arg1", "arg2"]
+}}
+DO NOT include any conversational text or formatting wrappers besides the raw JSON object.
+
+### INSTALLED PLUGINS AND CUSTOM ACTIONS (HIGHEST PRIORITY):{plugin_prompt_additions}
+
+### STANDARD ACTIONS:
+- "analize_image" (no argument)
+- "open_app" (argument: app_name)
+- "open_website" (argument: website_name)
+- "question" (argument: response text containing the conversation answer)
+- "none" (no argument)
+- "screenshot" (no argument)
+- "online_question" (argument: search query string)"""
+
+    return dynamic_system_prompt
 
 
 system_prompt = load_plugins()
@@ -256,10 +266,9 @@ def record_audio():
     chunk_size = 1024
     audio_blocks = []
 
-    # Sensitivity variables
-    volume_threshold = 500  # Higher = needs louder voice; Lower = more sensitive to quiet rooms
-    silence_limit_seconds = 1.5  # How long to wait after you stop speaking before shutting off
-    max_listen_timeout = 10.0  # Hard limit in seconds if nothing is said at all
+    volume_threshold = 500
+    silence_limit_seconds = 1.5
+    max_listen_timeout = 10.0
 
     max_silence_chunks = int((silence_limit_seconds * SAMPLE_RATE) / chunk_size)
     max_timeout_chunks = int((max_listen_timeout * SAMPLE_RATE) / chunk_size)
@@ -274,7 +283,6 @@ def record_audio():
             audio_blocks.append(block)
             chunks_recorded += 1
 
-            # Use root-mean-square (RMS) tracking for simple energy analysis
             volume_norm = np.linalg.norm(block) / np.sqrt(chunk_size)
 
             if volume_norm > volume_threshold:
@@ -325,6 +333,19 @@ print("whisper initialized")
 def jarvis_init(user_input):
     global system_prompt, action_name, CONVERSATION_HISTORY
 
+    # INSTANT BYPASS CHECKER: Scan for exact keyword triggers first to completely bypass local AI processing.
+    for keyword, linked_action in KEYWORD_REGISTRY.items():
+        if keyword in user_input:
+            print(
+                f"⚡ [BYPASS ACTIVATED] Voice string matched keyword '{keyword}'. Directly executing '{linked_action}'.")
+            if linked_action in ACTIONS:
+                # Pass the raw text command string as a fallback argument if the plugin checks for inputs
+                ACTIONS[linked_action](user_input)
+                return
+            else:
+                print("ERROR: Linked action bypass target missing.")
+
+    # Fallback to local AI logic pipeline if no registered keywords hit
     CONVERSATION_HISTORY.append({'role': 'user', 'content': user_input})
 
     try:

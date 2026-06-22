@@ -3,12 +3,12 @@ import time
 import tkinter as tk
 import winsound
 from win10toast import ToastNotifier
-import talk  # Imported so Jarvis can talk to you!
+from src import talk  # Imported so Jarvis can talk to you!
 
 # These variables tell Jarvis's LLM reasoning engine what this plugin does
 PLUGIN_NAME = "desktop_timer"
 PLUGIN_DESC = '"desktop_timer" (arguments: duration_in_seconds, reminder_message) - When asked to remind of something after some amount of time like a reminder/timer please use this function. Pass BOTH arguments inside the array.'
-
+KEYWORDS = ["set timer", "set reminder", "remind me"]
 
 class FloatingTimerWidget:
     def __init__(self, seconds, message):
