@@ -8,3 +8,4 @@ winget install Git.Git
 ollama pull qwen2.5-vl:3b
 
 call JarvisMod_Setup
+exit
