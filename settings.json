@@ -13,5 +13,7 @@
     "previous_track": false,
     "pause_track": false,
     "unpause_track": false,
-    "kill": true
+    "kill": true,
+    "open_stremio_app": true,
+    "sleep_pc": true
 }

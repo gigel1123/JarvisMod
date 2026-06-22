@@ -8,10 +8,10 @@ def sleep_pc():
 # plugins/test_plugin.py
 
 # 1. The action name Jarvis and Llama 3 will use in the JSON payload
-PLUGIN_NAME = "test_print"
+PLUGIN_NAME = "sleep_pc"
 
 # 2. The instruction injected into the AI's system prompt telling it when to use this
-PLUGIN_DESC = '"test_print" (no arguments. Use this function when the user explicitly asks to run a test or check if plugins are working)'
+PLUGIN_DESC = '"sleep_pc" (no arguments. Use this function when the user explicitly asks to put the pc to sleep mode)'
 
 # 3. The actual function Jarvis executes when the action matches
 def run():
