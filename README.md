@@ -62,7 +62,7 @@ To build a new plugin for JarvisMod, create a blank Python file in the `plugins/
 
 ```python
 """
-# PLUGIN TEMPLATE
+# plugins/test_plugin.py
 
 # 1. The action name Jarvis and Llama 3 will use in the JSON payload
 PLUGIN_NAME = "test_print"
@@ -70,11 +70,14 @@ PLUGIN_NAME = "test_print"
 # 2. The instruction injected into the AI's system prompt telling it when to use this
 PLUGIN_DESC = '"test_print" (no arguments. Use this function when the user explicitly asks to run a test or check if plugins are working)'
 
-# 3. The actual function Jarvis executes when the action matches
-def run():
-    # VERY IMPORTANT!
-    # TO MAKE JARVIS TALK YOU NEED TO IMPORT TALK
-    # TO TALK WRITE 'talk.jarvis("text")'
+# 3. BYPASS KEYWORDS (Optional): Define 1-3 keywords to completely bypass the AI.
+# If any of these are spoken, Jarvis runs this file immediately.
+KEYWORDS = ["run test", "test plugin", "check status"]
+
+
+# 4. The actual function Jarvis executes when the action matches.
+# Using *args makes sure it won't crash when receiving arguments from either the AI or a keyword bypass.
+def run(*args):
     import talk
     
     # Print to your console terminal
