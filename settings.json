@@ -6,9 +6,9 @@
     "none": true,
     "screenshot": true,
     "online_question": true,
+    "desktop_timer": true,
     "kill": true,
     "open_stremio_app": true,
-    "test": false,
     "sleep_pc": true,
-    "desktop_timer": true
+    "test": true
 }

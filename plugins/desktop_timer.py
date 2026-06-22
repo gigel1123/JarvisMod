@@ -111,30 +111,30 @@ def create_widget_safe(seconds, reminder_message):
 
 
 def run(*args):
-    """Main execution path safely mapped for Jarvis payload schemas."""
-    if not args:
-        print("Error: No arguments passed to desktop_timer.")
-        return
+    # Check if this was called via keyword bypass (args contains the raw voice text)
+    # OR if it was called directly by the AI (args contains the parsed data)
 
-    # Fallback default values
-    duration_in_seconds = args[0]
-    reminder_message = args[1] if len(args) > 1 else "Time is up!"
+    # If the AI passed us the data, it will be 2 arguments (duration, message)
+    if args and len(args) >= 2 and str(args[0]).isdigit():
+        duration = int(args[0])
+        message = args[1]
+    else:
+        # Keyword Bypass: The user just said "Set a timer".
+        # We need to tell the user to provide the info so the AI can catch it.
+        print("\n[PLUGIN] Keyword triggered. Requesting details from user...")
+        talk.jarvis("I can set that timer for you, sir. For how long, and what should I remind you about?")
+        return "waiting_for_input"
 
-    try:
-        seconds = int(duration_in_seconds)
-    except ValueError:
-        print(f"Error: Invalid timer duration received: {duration_in_seconds}")
-        return
-
-    print(f"⏰ UI Timer initialized for {seconds} seconds: {reminder_message}")
+    print(f"⏰ UI Timer initialized for {duration} seconds: {message}")
 
     # Speak out to acknowledge the command!
     try:
-        talk.jarvis(f"Yes sir, setting a timer for {seconds} seconds.")
+        talk.jarvis(f"Yes sir, setting a timer for {duration} seconds for {message}.")
     except Exception as e:
         print(f"Voice notification failed: {e}")
 
     # Run the GUI window instantiation inside a standalone background thread
-    gui_thread = threading.Thread(target=create_widget_safe, args=(seconds, reminder_message))
+    gui_thread = threading.Thread(target=create_widget_safe, args=(duration, message))
     gui_thread.daemon = True
     gui_thread.start()
+    return "timer_started"
