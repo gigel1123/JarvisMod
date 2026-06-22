@@ -2,7 +2,7 @@ import psutil
 
 # Define the metadata your framework uses (optional, but good practice)
 PLUGIN_NAME = "kill_app"
-PLUGIN_DESC = "kill_app (argument: app_name) - Closes or terminates a running application by its name"
+PLUGIN_DESC = "kill_app (argument: app_name) - To close/kill a process. used when user asks to kill/close process/app"
 
 
 def run(*args):

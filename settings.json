@@ -13,5 +13,5 @@
     "previous_track": true,
     "pause_track": true,
     "unpause_track": true,
-    "kill": false
+    "kill": true
 }
