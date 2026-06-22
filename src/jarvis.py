@@ -224,7 +224,8 @@ def load_plugins():
 
     # Remove any uninstalled plugins completely from the config dictionary
     for key in list(config.keys()):
-        if key not in ["analize_image", "open_app", "open_website", "question", "screenshot", "online_question", "none"]:
+        if key not in ["analize_image", "open_app", "open_website", "question", "screenshot", "online_question",
+                       "none"]:
             if key not in present_plugins:
                 config.pop(key, None)
                 if key in ACTIONS:
@@ -247,18 +248,52 @@ print("Initiallizing Jarvis")
 
 whisper_model = whisper.load_model("medium")
 SAMPLE_RATE = 16000
-DURATION = 5
 FILENAME = os.path.join(project_root, "command.wav")
 
 
 def record_audio():
-    audio_data = sd.rec(
-        int(SAMPLE_RATE * DURATION),
-        samplerate=SAMPLE_RATE,
-        channels=1,
-        dtype='int16',
-    )
-    sd.wait()
+    print("Listening for command...")
+    chunk_size = 1024
+    audio_blocks = []
+
+    # Sensitivity variables
+    volume_threshold = 500  # Higher = needs louder voice; Lower = more sensitive to quiet rooms
+    silence_limit_seconds = 1.5  # How long to wait after you stop speaking before shutting off
+    max_listen_timeout = 10.0  # Hard limit in seconds if nothing is said at all
+
+    max_silence_chunks = int((silence_limit_seconds * SAMPLE_RATE) / chunk_size)
+    max_timeout_chunks = int((max_listen_timeout * SAMPLE_RATE) / chunk_size)
+
+    silence_chunks = 0
+    chunks_recorded = 0
+    has_spoken = False
+
+    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype='int16') as stream:
+        while True:
+            block, overflowed = stream.read(chunk_size)
+            audio_blocks.append(block)
+            chunks_recorded += 1
+
+            # Use root-mean-square (RMS) tracking for simple energy analysis
+            volume_norm = np.linalg.norm(block) / np.sqrt(chunk_size)
+
+            if volume_norm > volume_threshold:
+                if not has_spoken:
+                    print("Speech detected...")
+                has_spoken = True
+                silence_chunks = 0
+            else:
+                if has_spoken:
+                    silence_chunks += 1
+                    if silence_chunks >= max_silence_chunks:
+                        print("Finished speaking.")
+                        break
+                else:
+                    if chunks_recorded >= max_timeout_chunks:
+                        print("Listening timed out (no speech detected).")
+                        break
+
+    audio_data = np.concatenate(audio_blocks, axis=0)
     wav.write(FILENAME, SAMPLE_RATE, audio_data)
 
 

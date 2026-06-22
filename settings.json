@@ -8,7 +8,7 @@
     "online_question": true,
     "kill": true,
     "open_stremio_app": true,
-    "test": true,
+    "test": false,
     "sleep_pc": true,
     "desktop_timer": true
 }

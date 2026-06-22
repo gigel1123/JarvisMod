@@ -3,10 +3,11 @@ import time
 import tkinter as tk
 import winsound
 from win10toast import ToastNotifier
+import talk  # Imported so Jarvis can talk to you!
 
 # These variables tell Jarvis's LLM reasoning engine what this plugin does
 PLUGIN_NAME = "desktop_timer"
-PLUGIN_DESC = '"desktop_timer" (arguments: duration_in_seconds, reminder_message) - When asked to remind of something after some amount of time like a reminder/timer please use this function.'
+PLUGIN_DESC = '"desktop_timer" (arguments: duration_in_seconds, reminder_message) - When asked to remind of something after some amount of time like a reminder/timer please use this function. Pass BOTH arguments inside the array.'
 
 
 class FloatingTimerWidget:
@@ -101,8 +102,24 @@ class FloatingTimerWidget:
         self.root.geometry(f"+{x}+{y}")
 
 
-def run(duration_in_seconds, reminder_message="Time is up!"):
-    """Main execution path triggered by Jarvis."""
+def create_widget_safe(seconds, reminder_message):
+    """Safely instantiates the Tkinter loop with its own thread window context."""
+    try:
+        FloatingTimerWidget(seconds, reminder_message)
+    except Exception as e:
+        print(f"Tkinter thread crash prevented: {e}")
+
+
+def run(*args):
+    """Main execution path safely mapped for Jarvis payload schemas."""
+    if not args:
+        print("Error: No arguments passed to desktop_timer.")
+        return
+
+    # Fallback default values
+    duration_in_seconds = args[0]
+    reminder_message = args[1] if len(args) > 1 else "Time is up!"
+
     try:
         seconds = int(duration_in_seconds)
     except ValueError:
@@ -111,9 +128,13 @@ def run(duration_in_seconds, reminder_message="Time is up!"):
 
     print(f"⏰ UI Timer initialized for {seconds} seconds: {reminder_message}")
 
+    # Speak out to acknowledge the command!
+    try:
+        talk.jarvis(f"Yes sir, setting a timer for {seconds} seconds.")
+    except Exception as e:
+        print(f"Voice notification failed: {e}")
+
     # Run the GUI window instantiation inside a standalone background thread
-    # This prevents the primary UI/Audio threads inside Jarvis from hanging
-    gui_thread = threading.Thread(target=FloatingTimerWidget, args=(seconds, reminder_message))
+    gui_thread = threading.Thread(target=create_widget_safe, args=(seconds, reminder_message))
     gui_thread.daemon = True
     gui_thread.start()
-run(10, "time")
