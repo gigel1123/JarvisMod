@@ -213,7 +213,7 @@ class SettingsWindow(ctk.CTkToplevel):
 class JarvisApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Jarvis Workspace Console")
+        self.title("JarvisMod v1.3.0")
         self.geometry("650x570")
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
