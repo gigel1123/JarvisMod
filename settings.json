@@ -8,10 +8,10 @@
     "none": true,
     "screenshot": true,
     "online_question": true,
-    "play_track": true,
-    "next_track": true,
-    "previous_track": true,
-    "pause_track": true,
-    "unpause_track": true,
+    "play_track": false,
+    "next_track": false,
+    "previous_track": false,
+    "pause_track": false,
+    "unpause_track": false,
     "kill": true
 }

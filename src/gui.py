@@ -6,7 +6,7 @@ import urllib.request
 import jarvis as jarvis_engine
 import mic_handling as wake_word_engine
 import sys
-import os
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -24,25 +24,19 @@ class PluginStoreWindow(ctk.CTkToplevel):
         self.scroll_frame = ctk.CTkScrollableFrame(self, width=450, height=420)
         self.scroll_frame.pack(pady=10, fill="both", expand=True, padx=15)
 
-        # Status label to show loading or errors
         self.status_lbl = ctk.CTkLabel(self.scroll_frame, text="Fetching online repository directory...")
         self.status_lbl.pack(pady=20)
 
-        # Run network request in a thread so the UI doesn't freeze
         threading.Thread(target=self.fetch_remote_plugins, daemon=True).start()
 
     def fetch_remote_plugins(self):
         repo_url = "https://api.github.com/repos/gigel1123/JarvisMod/contents/plugins"
         try:
-            # GitHub API requires a User-Agent header or it rejects the request
             req = urllib.request.Request(repo_url, headers={'User-Agent': 'JarvisClient'})
             with urllib.request.urlopen(req) as response:
                 files = json.loads(response.read().decode())
 
-            # Remove the initial loading label
             self.status_lbl.destroy()
-
-            # Filter for .py files
             plugin_files = [f for f in files if f.get("name", "").endswith(".py")]
 
             if not plugin_files:
@@ -62,19 +56,16 @@ class PluginStoreWindow(ctk.CTkToplevel):
         filename = plugin_info["name"]
         download_url = plugin_info["download_url"]
 
-        # Check if plugin is already downloaded locally
         local_path = os.path.join("plugins", filename)
         is_installed = os.path.exists(local_path)
 
         frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
         frame.pack(fill="x", pady=6, padx=5)
 
-        # Clean display name (removing .py extension)
         display_name = filename.replace(".py", "").replace("_", " ").title()
         lbl = ctk.CTkLabel(frame, text=display_name, font=ctk.CTkFont(size=13, weight="bold"))
         lbl.pack(side="left", anchor="w")
 
-        # Setup action button
         btn = ctk.CTkButton(frame, width=90)
         if is_installed:
             btn.configure(text="Installed", state="disabled", fg_color="#2E7D32")
@@ -89,19 +80,15 @@ class PluginStoreWindow(ctk.CTkToplevel):
 
     def download_worker(self, filename, url, button_widget):
         try:
-            # Ensure the local plugins folder actually exists
             os.makedirs("plugins", exist_ok=True)
             local_path = os.path.join("plugins", filename)
 
-            # Request and stream file data locally
             req = urllib.request.Request(url, headers={'User-Agent': 'JarvisClient'})
             with urllib.request.urlopen(req) as response, open(local_path, 'wb') as out_file:
                 out_file.write(response.read())
 
-            # Update UI on success
             self.parent_app.after(0, lambda: button_widget.configure(text="Installed", fg_color="#2E7D32"))
 
-            # Re-compile settings in memory so the toggle list registers the fresh plug-in
             jarvis_engine.load_plugins()
             self.parent_app.refresh_actions_on_toggle()
 
@@ -135,6 +122,10 @@ class SettingsWindow(ctk.CTkToplevel):
                     pass
 
         for key, value in jarvis_engine.config.items():
+            # Skip showing 'none' and track options in the interface configuration
+            if key in ["none", "play_track", "next_track", "previous_track", "pause_track", "unpause_track", "open_browser"]:
+                continue
+
             frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
             frame.pack(fill="x", pady=5, padx=5)
 
@@ -162,21 +153,12 @@ class SettingsWindow(ctk.CTkToplevel):
             jarvis_engine.ACTIONS[key] = jarvis_engine.none
         else:
             CORE_MAPPING = {
-                "analize_image": jarvis_engine.aimg.analyze_image if hasattr(jarvis_engine,
-                                                                             'aimg') else jarvis_engine.none,
+                "analize_image": jarvis_engine.aimg.analyze_image if hasattr(jarvis_engine, 'aimg') else jarvis_engine.none,
                 "open_app": jarvis_engine.open_app,
-                "open_browser": jarvis_engine.open_browser,
                 "open_website": jarvis_engine.open_website,
                 "question": jarvis_engine.question,
-                "none": jarvis_engine.none,
                 "screenshot": jarvis_engine.take_screenshot,
                 "online_question": jarvis_engine.google_question,
-                "play_track": jarvis_engine.spotify_control.search_and_play if hasattr(jarvis_engine,
-                                                                                       'spotify_control') else jarvis_engine.none,
-                "next_track": jarvis_engine.next_track,
-                "previous_track": jarvis_engine.previous_track,
-                "pause_track": jarvis_engine.pause_track,
-                "unpause_track": jarvis_engine.unpause_track,
             }
 
             if key in CORE_MAPPING:
@@ -198,15 +180,12 @@ class JarvisApp(ctk.CTk):
         self.settings_window = None
         self.store_window = None
 
-        # Top Frame Area
         self.top_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.top_frame.pack(fill="x", padx=20, pady=15)
 
-        self.title_lbl = ctk.CTkLabel(self.top_frame, text="JARVIS AUTOMATION CONSOLE",
-                                      font=ctk.CTkFont(size=18, weight="bold"))
+        self.title_lbl = ctk.CTkLabel(self.top_frame, text="JARVIS AUTOMATION CONSOLE", font=ctk.CTkFont(size=18, weight="bold"))
         self.title_lbl.pack(side="left")
 
-        # Container Frame for action buttons to look neat together
         self.btn_frame = ctk.CTkFrame(self.top_frame, fg_color="transparent")
         self.btn_frame.pack(side="right")
 
@@ -216,23 +195,19 @@ class JarvisApp(ctk.CTk):
         self.settings_btn = ctk.CTkButton(self.btn_frame, text="⚙ Settings", width=110, command=self.open_settings)
         self.settings_btn.pack(side="left")
 
-        # Whisper Output Panel
         self.whisper_lbl = ctk.CTkLabel(self, text="Whisper Speech Transcript:", font=ctk.CTkFont(weight="bold"))
         self.whisper_lbl.pack(anchor="w", padx=20, pady=(5, 2))
         self.whisper_text = ctk.CTkTextbox(self, height=70, activate_scrollbars=True)
         self.whisper_text.pack(fill="x", padx=20)
         self.whisper_text.insert("0.0", "Awaiting wake word command entry...")
 
-        # Jarvis Processing Panel
         self.jarvis_lbl = ctk.CTkLabel(self, text="Jarvis Framework Core Output:", font=ctk.CTkFont(weight="bold"))
         self.jarvis_lbl.pack(anchor="w", padx=20, pady=(15, 2))
         self.jarvis_text = ctk.CTkTextbox(self, height=130, activate_scrollbars=True)
         self.jarvis_text.pack(fill="x", padx=20)
         self.jarvis_text.insert("0.0", "Systems Idle.")
 
-        # Manual Override Input field
-        self.prompt_lbl = ctk.CTkLabel(self, text="Manual Execution Terminal Override:",
-                                       font=ctk.CTkFont(weight="bold"))
+        self.prompt_lbl = ctk.CTkLabel(self, text="Manual Execution Terminal Override:", font=ctk.CTkFont(weight="bold"))
         self.prompt_lbl.pack(anchor="w", padx=20, pady=(15, 2))
 
         self.input_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -245,9 +220,7 @@ class JarvisApp(ctk.CTk):
         self.send_btn = ctk.CTkButton(self.input_frame, text="Execute", width=100, command=self.send_manual_prompt)
         self.send_btn.pack(side="right")
 
-        # Live Engine Status Display
-        self.status_lbl = ctk.CTkLabel(self, text="🟢 Wake Word Engine Active: Sleep Mode ('Hey Jarvis')",
-                                       text_color="#4CAF50", font=ctk.CTkFont(weight="bold"))
+        self.status_lbl = ctk.CTkLabel(self, text="🟢 Wake Word Engine Active: Sleep Mode ('Hey Jarvis')", text_color="#4CAF50", font=ctk.CTkFont(weight="bold"))
         self.status_lbl.pack(pady=(0, 15))
 
     def open_settings(self):
