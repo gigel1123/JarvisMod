@@ -228,7 +228,8 @@ CRITICAL PIPELINE EXECUTION INSTRUCTIONS:
 2. If the user is trying to have small talk, say hello, or ask generic questions that don't match any custom tool description, select "question".
 3. When asked to open a specific desktop app use the function "open_app".
 4. If a function says 'no argument' in its description, do not provide any strings inside the arguments array.
-5. You must respond ONLY with a raw JSON object matching this schema:
+5. AGAIN!!!! ONLY AND ONLY RAW JSON OBJECT MATCHING THE SCHEMA! NOTHING ELSE!
+6. You must respond ONLY with a raw JSON object matching this schema:
 {{
     "action": "function_name",
     "arguments": ["arg1", "arg2"]
