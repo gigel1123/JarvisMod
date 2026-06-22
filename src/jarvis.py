@@ -241,7 +241,7 @@ DO NOT include any conversational text or formatting wrappers besides the raw JS
 ### STANDARD ACTIONS:
 - "analize_image" (no argument)
 - "open_app" (argument: app_name)
-- "open_website" (argument: website_name)
+- "open_website" (argument: website_name) -Youtube IS a website and not an app
 - "question" (argument: response text containing the conversation answer)
 - "none" (no argument)
 - "screenshot" (no argument)
