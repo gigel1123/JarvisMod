@@ -9,5 +9,6 @@
     "kill": true,
     "open_stremio_app": true,
     "sleep_pc": true,
-    "test": true
+    "test": true,
+    "type_write": true
 }

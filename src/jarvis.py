@@ -20,6 +20,11 @@ import talk
 import start_ollama as stollama
 import importlib.util
 import pathlib
+import check_app
+
+check_app.smart_launch("ollama")
+
+stollama.start_ollama()
 
 print("libraries loaded")
 stollama.start_ollama()

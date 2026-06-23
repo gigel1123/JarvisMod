@@ -1,4 +1,6 @@
 @echo off
+ollama pull llama3
+exit
 cd /d "%~dp0"
 
 if not exist ".venv" (
