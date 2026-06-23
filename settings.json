@@ -10,5 +10,5 @@
     "open_stremio_app": true,
     "sleep_pc": true,
     "test": true,
-    "type_write": true
+    "auto_clicker": true
 }
