@@ -7,8 +7,8 @@
     "screenshot": true,
     "online_question": true,
     "kill": true,
-    "open_stremio_app": true,
     "sleep_pc": true,
+    "auto_clicker": true,
     "test": true,
-    "auto_clicker": true
+    "open_stremio_app": true
 }

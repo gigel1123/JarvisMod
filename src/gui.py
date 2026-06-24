@@ -3,12 +3,94 @@ import json
 import customtkinter as ctk
 import threading
 import urllib.request
+import sys
+import zipfile
+import io
+import shutil
+import tempfile
+
 import jarvis as jarvis_engine
 import mic_handling as wake_word_engine
-import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# App Paths
+SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(SRC_DIR)
+VERSION_FILE = os.path.join(SRC_DIR, "version.txt")
+REPO_URL = "https://api.github.com/repos/gigel1123/JarvisMod"
+
+
+class VersionWindow(ctk.CTkToplevel):
+    def __init__(self, parent_app):
+        super().__init__()
+        self.parent_app = parent_app
+        self.title("Jarvis Version Manager")
+        self.geometry("500x450")
+        self.attributes("-topmost", True)
+
+        title_lbl = ctk.CTkLabel(self, text="Available Releases", font=ctk.CTkFont(size=16, weight="bold"))
+        title_lbl.pack(pady=15)
+
+        self.scroll_frame = ctk.CTkScrollableFrame(self, width=450, height=350)
+        self.scroll_frame.pack(pady=10, fill="both", expand=True, padx=15)
+
+        self.status_lbl = ctk.CTkLabel(self.scroll_frame, text="Fetching GitHub releases...")
+        self.status_lbl.pack(pady=20)
+
+        threading.Thread(target=self.fetch_releases, daemon=True).start()
+
+    def fetch_releases(self):
+        try:
+            req = urllib.request.Request(f"{REPO_URL}/releases", headers={'User-Agent': 'JarvisClient'})
+            with urllib.request.urlopen(req) as response:
+                releases = json.loads(response.read().decode())
+
+            self.status_lbl.destroy()
+
+            if not releases:
+                self.show_error("No releases found on GitHub.")
+                return
+
+            for release in releases:
+                self.parent_app.after(0, self.create_release_row, release)
+
+        except Exception as e:
+            self.show_error(f"Failed to connect: {str(e)}")
+
+    def show_error(self, message):
+        self.parent_app.after(0, lambda: self.status_lbl.configure(text=message, text_color="#FF5252"))
+
+    def create_release_row(self, release):
+        tag_name = release.get("tag_name", "Unknown")
+        zipball_url = release.get("zipball_url")
+
+        frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
+        frame.pack(fill="x", pady=6, padx=5)
+
+        lbl_text = f"{tag_name}"
+        if tag_name == self.parent_app.local_version:
+            lbl_text += " (Current)"
+
+        lbl = ctk.CTkLabel(frame, text=lbl_text, font=ctk.CTkFont(size=13, weight="bold"))
+        lbl.pack(side="left", anchor="w")
+
+        action_btn = ctk.CTkButton(
+            frame,
+            text="Switch Version",
+            width=110,
+            command=lambda: self.start_version_switch(tag_name, zipball_url, action_btn)
+        )
+
+        if tag_name == self.parent_app.local_version:
+            action_btn.configure(state="disabled", text="Installed", fg_color="#2E7D32")
+
+        action_btn.pack(side="right")
+
+    def start_version_switch(self, tag_name, zipball_url, btn):
+        btn.configure(text="Installing...", state="disabled", fg_color="#EF6C00")
+        threading.Thread(target=self.parent_app.install_version, args=(zipball_url, tag_name, self), daemon=True).start()
 
 
 class PluginStoreWindow(ctk.CTkToplevel):
@@ -31,7 +113,7 @@ class PluginStoreWindow(ctk.CTkToplevel):
         threading.Thread(target=self.fetch_remote_plugins, daemon=True).start()
 
     def fetch_remote_plugins(self):
-        repo_url = "https://api.github.com/repos/gigel1123/JarvisMod/contents/plugins"
+        repo_url = f"{REPO_URL}/contents/plugins"
         try:
             req = urllib.request.Request(repo_url, headers={'User-Agent': 'JarvisClient'})
             with urllib.request.urlopen(req) as response:
@@ -128,7 +210,6 @@ class PluginStoreWindow(ctk.CTkToplevel):
             jarvis_engine.load_plugins()
             self.parent_app.refresh_actions_on_toggle()
 
-            # Dynamically refresh settings layout if it happens to be open
             if self.parent_app.settings_window and self.parent_app.settings_window.winfo_exists():
                 self.parent_app.settings_window.clear_and_reload()
         except Exception as e:
@@ -213,28 +294,38 @@ class SettingsWindow(ctk.CTkToplevel):
 class JarvisApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("JarvisMod v1.3.0")
-        self.geometry("650x570")
+        self.local_version = self.get_local_version()
+        self.title(f"JarvisMod {self.local_version}")
+        self.geometry("800x570")
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
         self.settings_window = None
         self.store_window = None
+        self.version_window = None
+        self.latest_release_data = None
 
         self.top_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.top_frame.pack(fill="x", padx=20, pady=15)
 
-        self.title_lbl = ctk.CTkLabel(self.top_frame, text="JARVIS AUTOMATION CONSOLE",
+        self.title_lbl = ctk.CTkLabel(self.top_frame, text="JARVIS CONSOLE",
                                       font=ctk.CTkFont(size=18, weight="bold"))
         self.title_lbl.pack(side="left")
 
         self.btn_frame = ctk.CTkFrame(self.top_frame, fg_color="transparent")
         self.btn_frame.pack(side="right")
 
+        # Auto-Update Button (Hidden/Grey initially)
+        self.update_btn = ctk.CTkButton(self.btn_frame, text="Checking updates...", width=110, fg_color="gray", state="disabled", command=self.do_auto_update)
+        self.update_btn.pack(side="left", padx=(0, 5))
+
+        self.version_btn = ctk.CTkButton(self.btn_frame, text="🔄 Versions", width=90, command=self.open_version_manager)
+        self.version_btn.pack(side="left", padx=(0, 5))
+
         self.store_btn = ctk.CTkButton(self.btn_frame, text="🔌 Plugin Store", width=110, command=self.open_store)
         self.store_btn.pack(side="left", padx=(0, 5))
 
-        self.settings_btn = ctk.CTkButton(self.btn_frame, text="⚙ Settings", width=110, command=self.open_settings)
+        self.settings_btn = ctk.CTkButton(self.btn_frame, text="⚙ Settings", width=100, command=self.open_settings)
         self.settings_btn.pack(side="left")
 
         self.whisper_lbl = ctk.CTkLabel(self, text="Whisper Speech Transcript:", font=ctk.CTkFont(weight="bold"))
@@ -267,6 +358,76 @@ class JarvisApp(ctk.CTk):
                                        text_color="#4CAF50", font=ctk.CTkFont(weight="bold"))
         self.status_lbl.pack(pady=(0, 15))
 
+        # Check for updates on startup
+        threading.Thread(target=self.check_for_updates, daemon=True).start()
+
+    def get_local_version(self):
+        try:
+            with open(VERSION_FILE, "r") as f:
+                return f.read().strip()
+        except FileNotFoundError:
+            return "v1.3.0"
+
+    def check_for_updates(self):
+        try:
+            req = urllib.request.Request(f"{REPO_URL}/releases/latest", headers={'User-Agent': 'JarvisClient'})
+            with urllib.request.urlopen(req) as response:
+                data = json.loads(response.read().decode())
+
+            latest_tag = data.get("tag_name")
+            if latest_tag and latest_tag != self.local_version:
+                self.latest_release_data = data
+                self.after(0, lambda: self.update_btn.configure(
+                    text=f"Update to {latest_tag}",
+                    fg_color="#4CAF50",
+                    hover_color="#388E3C",
+                    state="normal"
+                ))
+            else:
+                self.after(0, lambda: self.update_btn.configure(text="Up to date", state="disabled"))
+        except Exception as e:
+            self.after(0, lambda: self.update_btn.configure(text="Update check failed", state="disabled"))
+
+    def do_auto_update(self):
+        if self.latest_release_data:
+            tag_name = self.latest_release_data.get("tag_name")
+            zipball_url = self.latest_release_data.get("zipball_url")
+            self.update_btn.configure(text="Downloading...", state="disabled", fg_color="#EF6C00")
+            threading.Thread(target=self.install_version, args=(zipball_url, tag_name), daemon=True).start()
+
+    def install_version(self, zip_url, tag_name, window_to_close=None):
+        try:
+            self.after(0, lambda: self.update_jarvis_ui(f"Downloading release payload for {tag_name}..."))
+            req = urllib.request.Request(zip_url, headers={'User-Agent': 'JarvisClient'})
+            with urllib.request.urlopen(req) as response:
+                zip_data = response.read()
+
+            self.after(0, lambda: self.update_jarvis_ui("Extracting files and applying update..."))
+            with zipfile.ZipFile(io.BytesIO(zip_data)) as z:
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    z.extractall(tmpdir)
+                    extracted_folders = os.listdir(tmpdir)
+                    if extracted_folders:
+                        repo_root = os.path.join(tmpdir, extracted_folders[0])
+                        # Overwrite files in the base directory
+                        shutil.copytree(repo_root, BASE_DIR, dirs_exist_ok=True)
+
+            # Manually update the version text to sync UI
+            with open(VERSION_FILE, "w") as f:
+                f.write(tag_name)
+
+            success_msg = f"✅ Successfully installed {tag_name}!\n\nIMPORTANT: You must CLOSE this window and restart Jarvis for the engine updates to fully take effect."
+            self.after(0, lambda: self.update_jarvis_ui(success_msg))
+            self.after(0, lambda: self.update_btn.configure(text="Restart Required", fg_color="#2E7D32"))
+
+            if window_to_close:
+                self.after(0, window_to_close.destroy)
+
+        except Exception as e:
+            error_msg = f"Failed to install version: {e}"
+            self.after(0, lambda: self.update_jarvis_ui(error_msg))
+            self.after(0, lambda: self.update_btn.configure(text="Update Failed", fg_color="#D32F2F"))
+
     def open_settings(self):
         if self.settings_window is None or not self.settings_window.winfo_exists():
             self.settings_window = SettingsWindow(self)
@@ -278,6 +439,12 @@ class JarvisApp(ctk.CTk):
             self.store_window = PluginStoreWindow(self)
         else:
             self.store_window.focus()
+
+    def open_version_manager(self):
+        if self.version_window is None or not self.version_window.winfo_exists():
+            self.version_window = VersionWindow(self)
+        else:
+            self.version_window.focus()
 
     def refresh_actions_on_toggle(self):
         jarvis_engine.system_prompt = jarvis_engine.load_plugins()
