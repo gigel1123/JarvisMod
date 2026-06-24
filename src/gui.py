@@ -90,7 +90,8 @@ class VersionWindow(ctk.CTkToplevel):
 
     def start_version_switch(self, tag_name, zipball_url, btn):
         btn.configure(text="Installing...", state="disabled", fg_color="#EF6C00")
-        threading.Thread(target=self.parent_app.install_version, args=(zipball_url, tag_name, self), daemon=True).start()
+        threading.Thread(target=self.parent_app.install_version, args=(zipball_url, tag_name, self),
+                         daemon=True).start()
 
 
 class PluginStoreWindow(ctk.CTkToplevel):
@@ -315,8 +316,8 @@ class JarvisApp(ctk.CTk):
         self.btn_frame = ctk.CTkFrame(self.top_frame, fg_color="transparent")
         self.btn_frame.pack(side="right")
 
-        # Auto-Update Button (Hidden/Grey initially)
-        self.update_btn = ctk.CTkButton(self.btn_frame, text="Checking updates...", width=110, fg_color="gray", state="disabled", command=self.do_auto_update)
+        self.update_btn = ctk.CTkButton(self.btn_frame, text="Checking updates...", width=110, fg_color="gray",
+                                        state="disabled", command=self.do_auto_update)
         self.update_btn.pack(side="left", padx=(0, 5))
 
         self.version_btn = ctk.CTkButton(self.btn_frame, text="🔄 Versions", width=90, command=self.open_version_manager)
@@ -358,7 +359,6 @@ class JarvisApp(ctk.CTk):
                                        text_color="#4CAF50", font=ctk.CTkFont(weight="bold"))
         self.status_lbl.pack(pady=(0, 15))
 
-        # Check for updates on startup
         threading.Thread(target=self.check_for_updates, daemon=True).start()
 
     def get_local_version(self):
@@ -402,17 +402,24 @@ class JarvisApp(ctk.CTk):
             with urllib.request.urlopen(req) as response:
                 zip_data = response.read()
 
-            self.after(0, lambda: self.update_jarvis_ui("Extracting files and applying update..."))
+            self.after(0, lambda: self.update_jarvis_ui("Extracting and applying update safely..."))
             with zipfile.ZipFile(io.BytesIO(zip_data)) as z:
                 with tempfile.TemporaryDirectory() as tmpdir:
                     z.extractall(tmpdir)
-                    extracted_folders = os.listdir(tmpdir)
-                    if extracted_folders:
-                        repo_root = os.path.join(tmpdir, extracted_folders[0])
-                        # Overwrite files in the base directory
-                        shutil.copytree(repo_root, BASE_DIR, dirs_exist_ok=True)
+                    contents = os.listdir(tmpdir)
+                    if contents:
+                        root_folder = os.path.join(tmpdir, contents[0])
 
-            # Manually update the version text to sync UI
+                        # SAFE ITERATIVE COPY (Prevents wiping the current folder)
+                        for item in os.listdir(root_folder):
+                            s = os.path.join(root_folder, item)
+                            d = os.path.join(BASE_DIR, item)
+                            if os.path.isdir(s):
+                                os.makedirs(d, exist_ok=True)
+                                shutil.copytree(s, d, dirs_exist_ok=True)
+                            else:
+                                shutil.copy2(s, d)
+
             with open(VERSION_FILE, "w") as f:
                 f.write(tag_name)
 
